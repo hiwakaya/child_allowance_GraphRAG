@@ -86,6 +86,7 @@ nodes:
     description: 支給要件を満たし、認定（受給権発生）。市長の認定により初めて手当を受ける権利が発生する。
     law_reference: 法第7条
     page: 5
+    next: CHECK_ONGOING_OBLIGATIONS
 
   - id: DECISION_REJECT
     type: decision_outcome
@@ -98,20 +99,104 @@ nodes:
     description: 所得超過（法第9条第1項）又は年金額が手当額以上のため全部停止
     law_reference: 法第9条第1項
 
+  # --- 受給後イベント（認定後のモニタリング〜差止・喪失・返還） ---
+
+  - id: CHECK_ONGOING_OBLIGATIONS
+    type: decision
+    ref: benefit_rules.suspension_rule
+    description: 認定後、届出義務（住所変更等）・現況届提出・法第29条命令への対応が継続して履行されているかを確認
+    page: 94, 95, 97, 101
+    branches:
+      - condition: 届出義務違反（住所変更等の届出が期限内にされない、又は書類提出命令に従わない）
+        next: DECISION_SUSPEND
+      - condition: 現況届が2年間未提出のまま支払期日（時効完成日）を経過
+        next: DECISION_LOSS_BY_PRESCRIPTION
+      - condition: 法第29条命令違反・質問拒否・虚偽申請
+        next: DECISION_DENIAL_ART14
+      - condition: 義務履行継続
+        next: CHECK_ONGOING_OBLIGATIONS
+
+  - id: DECISION_SUSPEND
+    type: decision_outcome
+    event: 差止
+    ref: benefit_rules.suspension_rule
+    description: 正当な理由なく届出・書類提出をしないため、手当の支払を一時差し止める
+    law_reference: [法第15条, 法第28条第1項]
+    page: 97
+    next: CHECK_SUSPENSION_RESOLUTION
+
+  - id: CHECK_SUSPENSION_RESOLUTION
+    type: decision
+    description: 差止の解消状況を確認
+    page: 97
+    branches:
+      - condition: 届出・書類提出により差止事由が解消
+        next: DECISION_SUSPENSION_LIFT
+      - condition: 現況届未提出のまま2年間解消しない
+        next: DECISION_LOSS_BY_PRESCRIPTION
+
+  - id: DECISION_SUSPENSION_LIFT
+    type: decision_outcome
+    event: 差止解除
+    description: 届出・書類提出により差止事由が解消し、手当の支払を再開する
+    page: 97
+
+  - id: DECISION_LOSS_BY_PRESCRIPTION
+    type: decision_outcome
+    event: 資格喪失（時効）
+    ref: benefit_rules.two_year_non_submission_loss_rule
+    description: 現況届未提出のまま支払期日から2年が経過し、受給権が時効消滅したため職権により資格を喪失させる
+    law_reference: 法第7条
+    page: 95
+    next: CHECK_OVERPAYMENT
+
+  - id: DECISION_DENIAL_ART14
+    type: decision_outcome
+    event: 支給停止（法第14条）
+    ref: benefit_rules.proper_receipt_rule
+    description: 法第29条第1項の命令違反・質問拒否・虚偽申請により、手当額の全部又は一部を支給しないことを決定する
+    law_reference: [法第14条, 法第29条第1項]
+    page: 101
+    next: CHECK_OVERPAYMENT
+
+  - id: CHECK_OVERPAYMENT
+    type: decision
+    description: 資格喪失・支給停止決定が過去に遡及するため、既支払額に過支給（返還対象額）が生じるかを確認
+    page: 98, 100
+    branches:
+      - condition: 手当の支給が継続しており今後の支払額から調整可能
+        next: DECISION_PAYMENT_ADJUSTMENT
+      - condition: 手当の支給が継続しておらず調整の対象となる次期支払がない
+        next: DECISION_DEBT
+
+  - id: DECISION_PAYMENT_ADJUSTMENT
+    type: decision_outcome
+    event: 支払調整
+    ref: benefit_rules.payment_adjustment_rule
+    description: 過支給分を次期以降支払われるべき手当の内払とみなし、支払額を減額調整する
+    law_reference: 法第31条
+    page: 100
+
+  - id: DECISION_DEBT
+    type: decision_outcome
+    event: 債権発生（返還金）
+    ref: benefit_rules.debt_repayment_rule
+    description: 過支給分について返還通知が到達した時点で債権として確定し、返還を請求する
+    law_reference: 法第31条
+    page: 98
+
 known_gaps:
-  description: 現時点でアップロード済みの原典に含まれておらず、判定木として未モデル化のイベント
-  note: 事務処理マニュアルの本文はページ78（年金併給の計算方法）までで、目次記載の以下セクションが未取得
-  missing_sections:
-    - name: 差止
-      page: 97
-    - name: 債権（返還金）
-      page: 98
-    - name: 支払調整（内払調整）
-      page: 100
-    - name: 適正受給～法第14条の取扱い
-      page: 101
-    - name: 現況届2年間未提出者の取扱い
-      page: 95
-    - name: 支払、時効
-      page: 94
-  impact: PHASE6 EVENT GRAPH（差止・解除・額改定・債権発生・返還）の判定木化にはこれらの原典が必要
+  description: 原典（markdown/sapporo_jido_fuyo_teate_manual.md）は全40セクション・Q&Aまで取得済み。
+    支給要件～所得制限・年金併給に加え、差止・資格喪失（時効）・支給停止（法第14条）・
+    支払調整・債権（返還金）までを本ファイルでルール化済み（CHECK_ONGOING_OBLIGATIONS以降）。
+  not_yet_modeled_sections:
+    - name: 額改定（増額・減額の入力実務、資格喪失届の様式別分岐）
+      page: 33, 37
+      note: 認定後の異動事由（施設入所・住所変更・別居監護等）ごとの額改定分岐は未モデル化。増額改定/減額改定という区分自体はDECISION_APPROVE後の変動として今後CHECK_ONGOING_OBLIGATIONSに合流させる想定。
+    - name: 通報時の対応
+      page: 102
+      note: 内部事務フローであり判定木としての分岐要素が薄いため意図的に未モデル化
+    - name: JR通勤定期の特別割引制度
+      page: 103
+      note: 児童扶養手当の周辺制度（利用証明）であり支給要件・支給区分の判定には影響しないため対象外
+  impact: PHASE6 EVENT GRAPH構築時は、上記の額改定分岐（特に施設入所・住所変更・別居監護・生計別等の異動事由ごとの取扱い）を追加でルール化する必要がある
