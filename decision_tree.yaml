@@ -1,0 +1,117 @@
+# Phase0: 児童扶養手当 認定判定 判定木
+# 本判定木はGraphRAGにおける推論経路提示のための構造であり、
+# 行政判断の代替や金額計算を行うものではない（CLAUDE.md参照）。
+
+decision_tree: 児童扶養手当_認定判定
+version: "1.0"
+source: 札幌市児童扶養手当事務処理マニュアル
+revision: 令和8年4月改訂（国マニュアル反映後）
+root: START
+
+nodes:
+  - id: START
+    type: entry
+    description: 認定請求の受付
+    page: 12
+    next: CHECK_CLAIMANT_TYPE
+
+  - id: CHECK_CLAIMANT_TYPE
+    type: decision
+    ref: eligibility_rules.claimant_requirements
+    description: 申請者の類型（母／父／養育者）と類型別要件（監護／生計同一／生計維持）を確認
+    on_fail: DECISION_REJECT
+    next: CHECK_POSITIVE_REQUIREMENTS
+
+  - id: CHECK_POSITIVE_REQUIREMENTS
+    type: decision
+    ref: eligibility_rules.positive_requirements
+    description: 児童が積極的要件（PR01〜PR08）のいずれかに該当するか（ANY）
+    on_fail: DECISION_REJECT
+    next: CHECK_NEGATIVE_REQUIREMENTS
+
+  - id: CHECK_NEGATIVE_REQUIREMENTS
+    type: decision
+    ref: eligibility_rules.negative_requirements
+    description: 児童が消極的要件（NR01〜NR04）のいずれにも該当しないか（NONE）
+    on_fail: DECISION_REJECT
+    next: CHECK_CHILD_AGE
+
+  - id: CHECK_CHILD_AGE
+    type: decision
+    ref: eligibility_rules.child_requirements
+    description: 児童が年齢要件（18歳到達年度末まで、又は20歳未満の障がい児）を満たすか
+    on_fail: DECISION_REJECT
+    next: CHECK_INCOME_LIMIT
+
+  - id: CHECK_INCOME_LIMIT
+    type: decision
+    ref: benefit_rules.income_limit_determination
+    description: 受給資格者・配偶者・扶養義務者の所得が所得制限限度額表のいずれの区分に該当するか
+    page: 65
+    next: DETERMINE_BENEFIT_CATEGORY
+
+  - id: DETERMINE_BENEFIT_CATEGORY
+    type: decision
+    ref: benefit_rules.benefit_category_rules
+    description: 所得区分に基づき全部支給／一部支給／全部停止を判定（BC01〜BC04）
+    branches:
+      - condition: 全部支給
+        next: CHECK_PENSION
+      - condition: 一部支給
+        next: CHECK_PENSION
+      - condition: 全部停止
+        next: DECISION_FULL_STOP
+
+  - id: CHECK_PENSION
+    type: decision
+    ref: benefit_rules.pension_coordination_rule
+    description: 公的年金等の受給がある場合、年金額と手当額を比較し併給調整
+    page: 71
+    branches:
+      - condition: 年金額 >= 手当額
+        next: DECISION_FULL_STOP
+      - condition: 年金額 < 手当額
+        next: CHECK_FIVE_YEAR_RULE
+
+  - id: CHECK_FIVE_YEAR_RULE
+    type: decision
+    ref: benefit_rules.five_year_half_reduction_rule
+    description: 支給開始から5年等経過し適用除外事由に該当しない場合、2分の1支給停止（BC05）
+    page: 54
+    next: DECISION_APPROVE
+
+  - id: DECISION_APPROVE
+    type: decision_outcome
+    event: 認定
+    description: 支給要件を満たし、認定（受給権発生）。市長の認定により初めて手当を受ける権利が発生する。
+    law_reference: 法第7条
+    page: 5
+
+  - id: DECISION_REJECT
+    type: decision_outcome
+    event: 却下
+    description: 受給資格者要件不充足、積極的要件不充足、消極的要件該当、又は児童年齢要件不充足により却下
+
+  - id: DECISION_FULL_STOP
+    type: decision_outcome
+    event: 全部停止
+    description: 所得超過（法第9条第1項）又は年金額が手当額以上のため全部停止
+    law_reference: 法第9条第1項
+
+known_gaps:
+  description: 現時点でアップロード済みの原典に含まれておらず、判定木として未モデル化のイベント
+  note: 事務処理マニュアルの本文はページ78（年金併給の計算方法）までで、目次記載の以下セクションが未取得
+  missing_sections:
+    - name: 差止
+      page: 97
+    - name: 債権（返還金）
+      page: 98
+    - name: 支払調整（内払調整）
+      page: 100
+    - name: 適正受給～法第14条の取扱い
+      page: 101
+    - name: 現況届2年間未提出者の取扱い
+      page: 95
+    - name: 支払、時効
+      page: 94
+  impact: PHASE6 EVENT GRAPH（差止・解除・額改定・債権発生・返還）の判定木化にはこれらの原典が必要

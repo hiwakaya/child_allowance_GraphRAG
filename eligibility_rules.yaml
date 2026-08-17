@@ -1,0 +1,125 @@
+# Phase0: 児童扶養手当 支給要件 判定ルール
+# GraphRAGはこれらのルールを根拠提示・説明に用いる。行政判断そのものは行わない。（CLAUDE.md参照）
+
+rule_set: eligibility_rules
+version: "1.0"
+source: 札幌市児童扶養手当事務処理マニュアル
+revision: 令和8年4月改訂（国マニュアル反映後）
+source_markdown: markdown/sapporo_jido_fuyo_teate_manual.md
+
+positive_requirements:
+  description: 児童が以下のいずれか一つ以上に該当すること（積極的要件）
+  match: ANY
+  law_reference: [法第4条第1項, 政令第1条の2, 政令第2条]
+  page: 2
+  items:
+    - id: PR01
+      name: 婚姻解消
+      description: 父母が婚姻を解消した児童（事実婚の解消を含む）
+    - id: PR02
+      name: 死亡
+      description: 父又は母が死亡した児童
+    - id: PR03
+      name: 障がい
+      description: 父又は母が政令で定める程度の障がいの状態にある児童
+      related_rule: disability_grade（別表第2、要判定基準参照）
+    - id: PR04
+      name: 生死不明
+      description: 父又は母の生死が明らかでない児童（危難後3か月以上、又はそれ以外の場合は1年以上生死不明）
+      law_reference: 昭和36年児発第1356号
+      note: 民法上の失踪宣告に該当する場合は事由「死亡」となる
+    - id: PR05
+      name: 遺棄
+      description: 父又は母が1年以上遺棄している児童（保護の断絶が1年以上継続）
+      note: 出稼ぎ・入院等、帰来が予定されている別居は遺棄に該当しない
+    - id: PR06
+      name: DV保護命令
+      description: 父又は母が配偶者からのDV保護命令（DV防止法第10条第1項又は第10条の2）を受けた児童
+    - id: PR07
+      name: 拘禁
+      description: 父又は母が1年以上拘禁されている児童
+    - id: PR08
+      name: 未婚懐胎
+      description: 母が未婚で懐胎した児童
+
+negative_requirements:
+  description: 児童が以下のいずれにも該当しないこと（消極的要件）
+  match: NONE
+  law_reference: [法第4条第2項, 法第4条第3項]
+  page: 2
+  items:
+    - id: NR01
+      name: 国内住所なし
+      description: 児童が日本国内に住所を有しない
+    - id: NR02
+      name: 施設入所・里親委託
+      description: 児童が施設入所している又は里親に委託されている
+      note: 里親児童の生活費は公費保障のため対象外
+    - id: NR03
+      name: 父母と生計同一
+      description: 児童が父又は母と生計同一である（障がい事由は除く）
+    - id: NR04
+      name: 父母配偶者に養育
+      description: 児童が父又は母の配偶者に養育されている（障がい事由は除く）
+  claimant_residency_requirement:
+    description: 母・父・養育者が日本国内に住所を有しない場合は支給しない
+    law_reference: 法第4条第3項
+
+claimant_requirements:
+  description: 受給資格者（申請者）の類型ごとの要件
+  law_reference: 法第3条
+  page: 2
+  types:
+    - id: CL_MOTHER
+      claimant_type: 母
+      requirement: 監護
+    - id: CL_FATHER
+      claimant_type: 父
+      requirement: 監護 かつ 生計同一
+      note: 生計同一は原則同居。例外として一時的な別居を認める。
+    - id: CL_CARER
+      claimant_type: 養育者
+      requirement: 同居 かつ 監護 かつ 生計維持
+      note: 母又は父を除き児童を養育する一切の者。別居監護は原則認められない。養育者が複数いる場合は最も多くの費用を負担している者が受給資格者となる（血縁関係は問わない）。
+
+child_requirements:
+  description: 支給対象児童の要件
+  law_reference: 法第3条第1項
+  page: 3
+  items:
+    - id: CH01
+      description: 18歳に達する日以後の最初の3月31日までにある者
+    - id: CH02
+      description: 20歳未満で障害の状態にある者（政令別表第1に定める程度）
+  exclusions:
+    - id: CH_EX01
+      description: 児童が婚姻をしている場合は対象外（事実婚を含む）
+
+special_carer_categories:
+  description: 個別判断が必要な養育者の類型
+  page: 3-4
+  items:
+    - id: SP01
+      name: 孤児
+      note: 一部支給停止は行わず、全部停止となる所得限度額は扶養義務者に係るものと同様とする
+    - id: SP02
+      name: 未成年の父母が未婚出生し祖父母が監護
+      note: 監護の程度が祖父母の方が大きい場合、祖父母が養育者として受給資格者となりうる
+
+key_terms:
+  page: 5-8
+  items:
+    - term: 監護
+      definition: 監督し、保護すること。親権の有無を問わず、同居を要件としない。同居の場合は原則監護していると考えられ、別居の場合は定期的な仕送り・訪問・連絡等が判断材料となる。
+      law_reference: 昭和51年10月1日児企第36号
+    - term: 生計維持
+      definition: 児童の生計費の大半を支出していること。資金は必ずしも自身で稼いだものでなくてもよい（仕送り・生活保護金品も可）。対象児童自身の収入によるものは不可。
+    - term: 生計同一
+      definition: 両者の生活に一体性があること（消費生活上の家計が同一であること）。原則同居していれば生計同一と考えられる。
+    - term: 養育
+      definition: 同居し、監護かつ生計維持すること。別居監護は原則認められない。
+    - term: 事実婚
+      definition: 婚姻の届出をしていないが、事実上婚姻関係と同様の事情にあること。父母が事実婚をしている場合は支給されない。原則同居を要件とするが、頻繁な定期訪問＋定期的な生計援助等がある場合は同居していなくても成立しうる。
+      law_reference: 法第4条第2項第4号, 法第3条第3項
+    - term: 扶養義務者
+      definition: 民法第877条第1項に定める直系血族及び兄弟姉妹のうち、受給者と生計同一の場合（養育者の場合は養育者の生計を維持している場合）に所得判定の対象となる。

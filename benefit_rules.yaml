@@ -1,0 +1,128 @@
+# Phase0: 児童扶養手当 支給区分・支給額 判定ルール
+# GraphRAGは支給区分（全部支給／一部支給／全部停止）の判定根拠提示までを責務とし、
+# 手当額そのものの円単位計算は行わない（CLAUDE.md PRIMARY OBJECTIVE参照）。
+
+rule_set: benefit_rules
+version: "1.0"
+source: 札幌市児童扶養手当事務処理マニュアル
+revision: 令和8年4月改訂（国マニュアル反映後）
+source_markdown: markdown/sapporo_jido_fuyo_teate_manual.md
+
+income_limit_determination:
+  description: 所得制限限度額表に基づく支給区分判定の基礎データ
+  law_reference: 法第9条第1項
+  page: 65
+  table_revision: 令和8年11月以降
+  unit: 万円（所得額）
+  applies_to: [受給資格者, 配偶者及び扶養義務者, 孤児等の養育者]
+  claimant_limits:
+    full_support:
+      "0人": 69.0
+      "1人": 107.0
+      "2人": 145.0
+      "3人": 183.0
+      "4人": 221.0
+      "5人": 259.0
+    partial_support:
+      "0人": 208.0
+      "1人": 246.0
+      "2人": 284.0
+      "3人": 322.0
+      "4人": 360.0
+      "5人": 398.0
+  spouse_and_dependent_relative_limit:
+    "0人": 236.0
+    "1人": 274.0
+    "2人": 312.0
+    "3人": 350.0
+    "4人": 388.0
+    "5人": 426.0
+  orphan_carer_limit:
+    "0人": 236.0
+    "1人": 274.0
+    "2人": 312.0
+    "3人": 350.0
+    "4人": 388.0
+    "5人": 426.0
+  limit_adjustments:
+    claimant:
+      - 老人同一生計配偶者又は老人扶養親族1人につき+10万円
+      - 特定扶養親族又は控除対象扶養親族（19歳未満）1人につき+15万円
+    spouse_and_dependent_relative:
+      - 老人扶養親族1人につき+6万円（扶養親族が全て老人扶養親族の場合は1人を除く）
+
+benefit_category_rules:
+  description: 所得限度額表に基づく支給区分の判定
+  page: 65
+  items:
+    - id: BC01
+      condition: 受給資格者所得 < full_support限度額
+      result: 全部支給
+    - id: BC02
+      condition: full_support限度額 <= 受給資格者所得 < partial_support限度額
+      result: 一部支給
+    - id: BC03
+      condition: 受給資格者所得 >= partial_support限度額
+      result: 全部停止
+      law_reference: 法第9条第1項
+    - id: BC04
+      condition: 配偶者又は扶養義務者の所得 >= spouse_and_dependent_relative_limit
+      result: 全部停止
+      note: 配偶者・扶養義務者の所得超過は受給資格者本人の所得区分に関わらず全部停止となる
+      law_reference: 法第9条第1項
+
+income_calculation_inputs:
+  description: 所得算定に算入・控除される主な要素（円単位の最終計算はGraphRAG対象外、根拠提示のみ）
+  page: 65-66
+  included:
+    - 地方税法に定める所得（総所得金額、長期短期譲渡所得、先物取引に係る雑所得等。給与収入は給与所得控除後の額）
+    - 養育費（前年受領額の8割を算入。取得費用相当分として2割を一律控除）
+  deductions:
+    - name: 社会保険料相当額控除
+      amount: 8万円
+      law_reference: 法第4条第1項
+    - name: 給与所得・年金所得控除
+      amount: 最大10万円
+    - name: 障害者控除
+      amount: 27万円（特別障害者は40万円）
+    - name: 勤労学生控除
+      amount: 27万円
+    - name: 寡婦控除
+      amount: 27万円
+      note: 母（父）本人の場合は適用なし
+    - name: ひとり親控除
+      amount: 35万円
+      note: 母（父）本人の場合は適用なし
+
+pension_coordination_rule:
+  description: 公的年金等受給者の併給調整
+  law_reference: 法第13条の2
+  page: 71
+  rule:
+    - condition: 児童扶養手当額 < 年金額
+      result: 全部停止
+    - condition: 児童扶養手当額 > 年金額
+      result: 差額分を支給
+  note: 具体的な差額計算は差額計算シートによる（GraphRAG対象外）。障害基礎年金等については令和3年3月分以降、子加算部分との差額の考え方に制度改正あり。
+
+five_year_half_reduction_rule:
+  id: BC05
+  name: 一部支給停止適用除外事由届
+  law_reference: 法第13条の3
+  page: 54
+  rule: 受給者（養育者を除く）が支給開始月の初日から起算して5年等を経過し、就業困難な事情がないにもかかわらず就業意欲がみられないときは、支給すべき手当額の2分の1を支給しない
+  exclusion: 就業している等、一定の適用除外事由に該当する場合は半額支給停止を適用しない
+
+disaster_special_case:
+  id: BC06
+  name: 災害特例による所得制限の解除
+  law_reference: [法第12条, 施行令第5条, 施行規則第3条の2第3項]
+  page: 70
+  rule: 受給者・配偶者・扶養義務者等が所有財産の2分の1以上の損害を受けた場合、受給者本人のみ所得制限を解除する（配偶者・扶養義務者が所得制限に該当する場合は全部停止のまま）
+  period: 損害を受けた月から翌年10月まで（最長22か月、最短11か月）
+  note: 被災した年の所得が実際には全部支給範囲内でなかったと翌年判明した場合、差額を返還させる
+
+reference_benefit_amount_note:
+  description: 参考情報（法定額改定のためGraphRAGでの厳密な金額保持は非推奨、都度最新の法令・告示を参照）
+  page: 1
+  text: 児童1人目 11,340円～48,050円、児童2人目以降 5,680円～11,350円（所得額等に応じて支給、令和8年4月時点）
