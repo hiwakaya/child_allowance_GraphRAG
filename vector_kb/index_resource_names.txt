@@ -1,0 +1,2 @@
+INDEX=projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040
+ENDPOINT=projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672

@@ -1,0 +1,15 @@
+﻿Creating index (this is a long-running operation)...
+Creating MatchingEngineIndex
+Create MatchingEngineIndex backing LRO: projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040/operations/5033504583452721152
+MatchingEngineIndex created. Resource name: projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040
+To use this MatchingEngineIndex in another session:
+index = aiplatform.MatchingEngineIndex('projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040')
+Index created: projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040
+Creating index endpoint (public)...
+Creating MatchingEngineIndexEndpoint
+Create MatchingEngineIndexEndpoint backing LRO: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672/operations/8542371643127758848
+MatchingEngineIndexEndpoint created. Resource name: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672
+To use this MatchingEngineIndexEndpoint in another session:
+index_endpoint = aiplatform.MatchingEngineIndexEndpoint('projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672')
+Endpoint created: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672
+Resource names saved to C:\Users\hiwak\gitclone\child_allowance_GraphRAG\vector_kb\index_resource_names.txt
