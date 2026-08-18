@@ -32,6 +32,14 @@
   .compare-col.graph { background: #f2f8ff; border-color: #cfe3fb; }
   .compare-title { font-weight: 700; font-size: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
   .compare-meta { font-weight: 400; color: #888; font-size: 11px; }
+  .upload-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: #555; }
+  .upload-row input[type=file] { font-size: 12px; }
+  .file-chip { display: inline-flex; align-items: center; gap: 6px; background: #eef1ee; border-radius: 6px; padding: 3px 8px; }
+  .file-chip button { padding: 0 4px; background: none; color: #a33; font-size: 12px; }
+  .privacy-note { font-size: 11px; color: #888; }
+  .issue-item { font-size: 13px; margin-bottom: 8px; padding: 8px 10px; background: #fff6f2; border-left: 3px solid #c9603f; border-radius: 4px; }
+  .issue-item .issue-what { font-weight: 600; }
+  .issue-item .issue-ref { color: #888; font-size: 11px; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -46,8 +54,14 @@
       <input type="checkbox" id="compareMode">
       比較モード（Vector RAGのみ vs GraphRAG を並べて表示）
     </label>
+    <div class="upload-row">
+      <label for="pdfFile" style="cursor:pointer;">📎 申請書PDFを添付して不備チェック</label>
+      <input type="file" id="pdfFile" accept="application/pdf">
+      <span class="privacy-note">（内容は保存・記録されません）</span>
+    </div>
+    <div id="fileChipRow"></div>
     <div class="form-row">
-      <input id="question" type="text" placeholder="例: 事実婚をしている場合、手当は支給されますか" autocomplete="off">
+      <input id="question" type="text" placeholder="例: 事実婚をしている場合、手当は支給されますか　／　PDF添付時は補足メモ（任意）" autocomplete="off">
       <button type="submit" id="submitBtn">質問する</button>
     </div>
   </form>
@@ -57,6 +71,21 @@ const chat = document.getElementById('chat');
 const form = document.getElementById('form');
 const input = document.getElementById('question');
 const submitBtn = document.getElementById('submitBtn');
+const pdfFile = document.getElementById('pdfFile');
+const fileChipRow = document.getElementById('fileChipRow');
+
+pdfFile.addEventListener('change', () => {
+  fileChipRow.innerHTML = '';
+  if (pdfFile.files.length === 0) return;
+  const chip = document.createElement('span');
+  chip.className = 'file-chip';
+  chip.innerHTML = `${escapeHtml(pdfFile.files[0].name)} <button type="button" id="removeFile">×</button>`;
+  fileChipRow.appendChild(chip);
+  document.getElementById('removeFile').addEventListener('click', () => {
+    pdfFile.value = '';
+    fileChipRow.innerHTML = '';
+  });
+});
 
 function addUserMessage(text) {
   const div = document.createElement('div');
@@ -122,36 +151,73 @@ function addComparisonMessage(data) {
   window.scrollTo(0, document.body.scrollHeight);
 }
 
+function checkResultHtml(result) {
+  const issues = (result.issues || []).map(i => `
+    <div class="issue-item">
+      <div class="issue-what">${escapeHtml(i.item || '')}: ${escapeHtml(i.issue || '')}</div>
+      <div class="issue-ref">${escapeHtml(i.reference || '')}</div>
+    </div>
+  `).join('') || '<div>指摘事項はありませんでした。</div>';
+
+  return `
+    <div class="answer">${escapeHtml(result.summary || '')}</div>
+    <div class="section-label">指摘事項</div>
+    ${issues}
+    ${listSection('不足している可能性のある添付書類', result.missing_attachments)}
+    ${listSection('確認事項', result.confirmations)}
+  `;
+}
+
+function addCheckMessage(result) {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = checkResultHtml(result);
+  chat.appendChild(div);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const question = input.value.trim();
-  if (!question) return;
+  const hasFile = pdfFile.files.length > 0;
+  if (!question && !hasFile) return;
 
-  addUserMessage(question);
+  addUserMessage(hasFile ? `📎 ${pdfFile.files[0].name}${question ? ' — ' + question : ''}` : question);
   input.value = '';
   submitBtn.disabled = true;
 
   const loadingDiv = document.createElement('div');
   loadingDiv.className = 'msg bot loading';
-  loadingDiv.textContent = '検索・回答生成中...';
+  loadingDiv.textContent = hasFile ? '申請書を確認中...' : '検索・回答生成中...';
   chat.appendChild(loadingDiv);
   window.scrollTo(0, document.body.scrollHeight);
 
-  const compareMode = document.getElementById('compareMode').checked;
-  const endpoint = compareMode ? '/api/compare' : '/api/ask';
-
   try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
-    });
-    const data = await res.json();
-    loadingDiv.remove();
-    if (compareMode) {
-      addComparisonMessage(data);
+    if (hasFile) {
+      const formData = new FormData();
+      formData.append('file', pdfFile.files[0]);
+      formData.append('note', question);
+      const res = await fetch('/api/check-application', { method: 'POST', body: formData });
+      const data = await res.json();
+      loadingDiv.remove();
+      addCheckMessage(data.result);
+      pdfFile.value = '';
+      fileChipRow.innerHTML = '';
     } else {
-      addBotMessage(data.result);
+      const compareMode = document.getElementById('compareMode').checked;
+      const endpoint = compareMode ? '/api/compare' : '/api/ask';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question }),
+      });
+      const data = await res.json();
+      loadingDiv.remove();
+      if (compareMode) {
+        addComparisonMessage(data);
+      } else {
+        addBotMessage(data.result);
+      }
     }
   } catch (err) {
     loadingDiv.textContent = 'エラーが発生しました: ' + err.message;
