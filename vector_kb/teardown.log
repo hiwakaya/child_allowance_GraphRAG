@@ -1,0 +1,19 @@
+﻿Undeploying jido_fuyo_teate_deployed from endpoint...
+Undeploying index MatchingEngineIndexEndpoint index_endpoint: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672
+Undeploy index MatchingEngineIndexEndpoint index_endpoint backing LRO: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672/operations/7561149874314412032
+MatchingEngineIndexEndpoint index_endpoint Undeployed index. Resource name: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672
+Undeployed.
+Deleting endpoint...
+Deleting MatchingEngineIndexEndpoint : projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672
+MatchingEngineIndexEndpoint deleted. . Resource name: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672
+Deleting MatchingEngineIndexEndpoint resource: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672
+Delete MatchingEngineIndexEndpoint backing LRO: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672/operations/4225671400293138432
+MatchingEngineIndexEndpoint resource projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672 deleted.
+Endpoint deleted.
+Deleting index...
+Deleting MatchingEngineIndex : projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040
+MatchingEngineIndex deleted. . Resource name: projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040
+Deleting MatchingEngineIndex resource: projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040
+Delete MatchingEngineIndex backing LRO: projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040/operations/410278090980196352
+MatchingEngineIndex resource projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040 deleted.
+Index deleted.
