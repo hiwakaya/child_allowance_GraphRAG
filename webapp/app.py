@@ -66,12 +66,26 @@ def get_genai_client():
 
 
 def build_user_prompt(question, context):
+    # Internal ontology IDs (e.g. "LAW-41") are implementation details for
+    # graph traversal only - they must never reach the model's input, or it
+    # may echo them back as if they were law/concept names the user can
+    # search for themselves.
     return json.dumps({
         "question": question,
         "search_results": {
-            "concepts": context["concepts"],
-            "paths": context["paths"][:15],
-            "laws": context["laws"],
+            "concepts": [
+                {"name": c["name"], "label": c["label"],
+                 "description": c.get("description"), "category": c.get("category")}
+                for c in context["concepts"]
+            ],
+            "paths": [
+                [{"from": s["from"], "relation": s["relation"], "to": s["to"]} for s in path]
+                for path in context["paths"][:15]
+            ],
+            "laws": [
+                {"name": l["name"], "description": l.get("description"), "page": l.get("page")}
+                for l in context["laws"]
+            ],
             "chunks": [
                 {"text": c["text"], "page": c["page"], "section": c["section"]}
                 for c in context["chunks"]
