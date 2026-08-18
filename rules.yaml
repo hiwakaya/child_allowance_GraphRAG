@@ -1,0 +1,139 @@
+# Phase7: Rule Graph
+# 各ルールは ontology/nodes.csv の RULE-* ノードに対応し、
+# ontology/relations.csv の DETERMINES 関係で対応する Decision へ接続されている。
+# 全DecisionはいずれかのRuleへ接続すること（CLAUDE.md Phase7要件）。
+
+rule_set: rules
+version: "1.0"
+source: 札幌市児童扶養手当事務処理マニュアル
+revision: 令和8年4月改訂（国マニュアル反映後）
+
+rules:
+  - id: RULE-ELIG01
+    name: 支給要件判定ルール
+    if: 受給資格者類型要件を満たす AND 積極的要件のいずれかに該当する AND 消極的要件のいずれにも該当しない AND 児童年齢要件を満たす
+    then: 認定
+    else: 却下
+    law_reference: [法第3条, 法第4条第1項, 法第4条第2項, 法第7条]
+    page: 2-5
+    determines: [DEC-01, DEC-02]
+
+  - id: RULE-ELIG02
+    name: 消極的要件該当資格喪失ルール
+    if: 認定後に消極的要件（施設入所・生計同一化・婚姻等）のいずれかに該当するに至った
+    then: 資格喪失（消極的要件該当）
+    law_reference: 法第4条第2項
+    page: 40-48
+    determines: [DEC-10]
+
+  - id: RULE-BC01
+    name: 全部支給判定ルール
+    if: 受給資格者所得算定額 < 全部支給所得制限額
+    then: 全部支給
+    law_reference: 法第9条第1項
+    page: 65
+    determines: [BEN-01]
+
+  - id: RULE-BC02
+    name: 一部支給判定ルール
+    if: 全部支給所得制限額 <= 受給資格者所得算定額 < 一部支給所得制限額
+    then: 一部支給
+    law_reference: 法第9条第1項
+    page: 65
+    determines: [BEN-02]
+
+  - id: RULE-BC03
+    name: 全部停止判定ルール（所得超過）
+    if: 受給資格者所得算定額 >= 一部支給所得制限額
+    then: 全部停止
+    law_reference: 法第9条第1項
+    page: 65
+    determines: [BEN-03, DEC-03]
+
+  - id: RULE-BC04
+    name: 全部停止判定ルール（扶養義務者等所得超過）
+    if: 配偶者又は扶養義務者の所得 >= 配偶者・扶養義務者所得制限額
+    then: 全部停止
+    law_reference: 法第9条第1項
+    page: 65
+    determines: [BEN-03, DEC-03]
+
+  - id: RULE-BC05
+    name: 一部支給停止適用除外ルール
+    if: 支給開始月の初日から起算して5年等を経過 AND 適用除外事由に該当しない
+    then: 手当額の2分の1を支給しない
+    law_reference: 法第13条の3
+    page: 54
+    determines: [BEN-06]
+
+  - id: RULE-BC06
+    name: 災害特例ルール
+    if: 受給者本人が所有財産の2分の1以上の損害を受けた
+    then: 受給者本人の所得制限を解除する
+    law_reference: [法第12条, 施行令第5条, 施行規則第3条の2第3項]
+    page: 70
+    determines: [BEN-07]
+
+  - id: RULE-PENSION
+    name: 年金併給調整ルール
+    if: 公的年金等の年額 >= 児童扶養手当額
+    then: 全部停止
+    else_if: 公的年金等の年額 < 児童扶養手当額
+    else_then: 児童扶養手当額と年金額の差額分を支給
+    law_reference: 法第13条の2
+    page: 71
+    determines: [BEN-03, BEN-05, DEC-03]
+
+  - id: RULE-EV01
+    name: 支払・時効ルール
+    if: 支払期日の2年後の支払開始期日の前日が経過した
+    then: 当該支払期日分の受給権は時効により消滅する
+    law_reference: [法第7条, 法第15条]
+    page: 94
+    determines: []
+
+  - id: RULE-EV02
+    name: 現況届2年未提出資格喪失ルール
+    if: 現況届が未提出のまま支払期日（時効完成日）を経過した
+    then: 資格喪失（時効）
+    law_reference: 法第7条
+    page: 95
+    determines: [DEC-06]
+
+  - id: RULE-EV03
+    name: 差止ルール
+    if: 正当な理由なく届出をせず又は書類その他の物件を提出しない
+    then: 差止
+    else_if: 届出・書類提出により差止事由が解消した
+    else_then: 差止解除
+    law_reference: [法第15条, 法第28条第1項]
+    page: 97
+    determines: [DEC-04, DEC-05]
+
+  - id: RULE-EV04
+    name: 債権返還ルール
+    if: 過支給が生じ、返還通知が相手方に到達した
+    then: 債権確定（返還金）
+    law_reference: 法第31条
+    page: 98
+    determines: [DEC-09]
+
+  - id: RULE-EV05
+    name: 支払調整ルール
+    if: 手当の支給が継続しており、過支給分を次期以降の支払額から調整できる
+    then: 支払調整（内払調整）
+    law_reference: 法第31条
+    page: 100
+    determines: [DEC-08]
+
+  - id: RULE-EV06
+    name: 適正受給ルール（法第14条）
+    if: 法第29条第1項の命令に従わない OR 質問に応じない OR 虚偽の申請をした
+    then: 手当額の全部又は一部を支給しない
+    law_reference: [法第14条, 法第29条第1項]
+    page: 101
+    determines: [DEC-07]
+
+decision_coverage_check:
+  description: 全DecisionノードがいずれかのRuleのdeterminesに含まれることの確認用一覧
+  all_decisions: [DEC-01, DEC-02, DEC-03, DEC-04, DEC-05, DEC-06, DEC-07, DEC-08, DEC-09, DEC-10]

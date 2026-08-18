@@ -1,0 +1,9 @@
+source_docs/
+markdown/
+scripts/
+ontology/
+*.yaml
+*.md
+vector_kb/*.log
+vector_kb/*.txt
+.git/

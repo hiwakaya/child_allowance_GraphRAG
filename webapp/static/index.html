@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>児童扶養手当 制度Q&A</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; background: #f7f7f8; color: #1a1a1a; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 13px; margin-bottom: 24px; }
+  .disclaimer { background: #fff8e1; border: 1px solid #f0d68a; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px; }
+  #chat { display: flex; flex-direction: column; gap: 16px; }
+  .msg { border-radius: 10px; padding: 14px 16px; }
+  .msg.user { background: #dceeff; align-self: flex-end; max-width: 80%; }
+  .msg.bot { background: #fff; border: 1px solid #e2e2e2; }
+  .section-label { font-weight: 600; font-size: 12px; color: #555; margin-top: 10px; }
+  .section-label:first-child { margin-top: 0; }
+  ul { margin: 4px 0 0; padding-left: 20px; }
+  li { font-size: 13px; margin-bottom: 4px; line-height: 1.5; }
+  .answer { font-size: 15px; line-height: 1.6; }
+  form { position: fixed; bottom: 0; left: 0; right: 0; background: #f7f7f8; padding: 12px 16px; display: flex; gap: 8px; max-width: 760px; margin: 0 auto; }
+  input { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; }
+  button { padding: 10px 18px; border-radius: 8px; border: none; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; }
+  button:disabled { background: #aaa; }
+  .loading { color: #888; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>児童扶養手当 制度Q&A</h1>
+  <div class="subtitle">札幌市児童扶養手当事務処理マニュアルに基づく制度説明支援（GraphRAG）</div>
+  <div class="disclaimer">このシステムは制度の一般的な説明を行うものであり、個別の認定可否や支給額の判断は行いません。実際の手続きは手当給付係にご確認ください。</div>
+
+  <div id="chat"></div>
+
+  <form id="form">
+    <input id="question" type="text" placeholder="例: 事実婚をしている場合、手当は支給されますか" autocomplete="off">
+    <button type="submit" id="submitBtn">質問する</button>
+  </form>
+
+<script>
+const chat = document.getElementById('chat');
+const form = document.getElementById('form');
+const input = document.getElementById('question');
+const submitBtn = document.getElementById('submitBtn');
+
+function addUserMessage(text) {
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.textContent = text;
+  chat.appendChild(div);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+function listSection(label, items) {
+  if (!items || items.length === 0) return '';
+  const lis = items.map(i => `<li>${escapeHtml(i)}</li>`).join('');
+  return `<div class="section-label">${label}</div><ul>${lis}</ul>`;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function addBotMessage(result) {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `
+    <div class="answer">${escapeHtml(result.answer || '')}</div>
+    <div class="section-label">理由</div>
+    <div>${escapeHtml(result.reason || '')}</div>
+    ${listSection('根拠', result.evidence)}
+    <div class="section-label">推論経路</div>
+    <div>${escapeHtml(result.reasoning_path || '')}</div>
+    ${listSection('関連法令', result.laws)}
+    ${listSection('確認事項', result.confirmations)}
+  `;
+  chat.appendChild(div);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const question = input.value.trim();
+  if (!question) return;
+
+  addUserMessage(question);
+  input.value = '';
+  submitBtn.disabled = true;
+
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'msg bot loading';
+  loadingDiv.textContent = '検索・回答生成中...';
+  chat.appendChild(loadingDiv);
+  window.scrollTo(0, document.body.scrollHeight);
+
+  try {
+    const res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question }),
+    });
+    const data = await res.json();
+    loadingDiv.remove();
+    addBotMessage(data.result);
+  } catch (err) {
+    loadingDiv.textContent = 'エラーが発生しました: ' + err.message;
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
