@@ -94,29 +94,55 @@ def build_user_prompt(question, context):
     }, ensure_ascii=False)
 
 
+def generate_answer(question, context):
+    client = get_genai_client()
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=[SYSTEM_PROMPT, build_user_prompt(question, context)],
+        config={"response_mime_type": "application/json"},
+    )
+    try:
+        return json.loads(response.text)
+    except json.JSONDecodeError:
+        return {"answer": response.text, "reason": "", "evidence": [],
+                "reasoning_path": "", "laws": [], "confirmations": []}
+
+
 @app.post("/api/ask")
 def ask(req: AskRequest):
     retriever = get_retriever()
     context = retriever.retrieve(req.question)
-
-    client = get_genai_client()
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[SYSTEM_PROMPT, build_user_prompt(req.question, context)],
-        config={"response_mime_type": "application/json"},
-    )
-
-    try:
-        structured = json.loads(response.text)
-    except json.JSONDecodeError:
-        structured = {"answer": response.text, "reason": "", "evidence": [],
-                      "reasoning_path": "", "laws": [], "confirmations": []}
+    structured = generate_answer(req.question, context)
 
     return JSONResponse({
         "result": structured,
         "raw_context": {
             "concept_count": len(context["concepts"]),
             "chunk_count": len(context["chunks"]),
+        },
+    })
+
+
+@app.post("/api/compare")
+def compare(req: AskRequest):
+    retriever = get_retriever()
+
+    vector_ctx = retriever.retrieve_vector_only(req.question)
+    vector_answer = generate_answer(req.question, vector_ctx)
+
+    graph_ctx = retriever.retrieve(req.question)
+    graph_answer = generate_answer(req.question, graph_ctx)
+
+    return JSONResponse({
+        "vector_only": {
+            "result": vector_answer,
+            "concept_count": 0,
+            "chunk_count": len(vector_ctx["chunks"]),
+        },
+        "graph_rag": {
+            "result": graph_answer,
+            "concept_count": len(graph_ctx["concepts"]),
+            "chunk_count": len(graph_ctx["chunks"]),
         },
     })
 

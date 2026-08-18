@@ -19,11 +19,19 @@
   ul { margin: 4px 0 0; padding-left: 20px; }
   li { font-size: 13px; margin-bottom: 4px; line-height: 1.5; }
   .answer { font-size: 15px; line-height: 1.6; }
-  form { position: fixed; bottom: 0; left: 0; right: 0; background: #f7f7f8; padding: 12px 16px; display: flex; gap: 8px; max-width: 760px; margin: 0 auto; }
-  input { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; }
+  form { position: fixed; bottom: 0; left: 0; right: 0; background: #f7f7f8; padding: 10px 16px 12px; max-width: 760px; margin: 0 auto; border-top: 1px solid #e2e2e2; }
+  .form-row { display: flex; gap: 8px; }
+  .compare-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; margin-bottom: 8px; }
+  input[type=text] { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; }
   button { padding: 10px 18px; border-radius: 8px; border: none; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; }
   button:disabled { background: #aaa; }
   .loading { color: #888; font-size: 13px; }
+  .compare-wrap { display: flex; gap: 12px; flex-wrap: wrap; }
+  .compare-col { flex: 1; min-width: 260px; border-radius: 10px; padding: 14px 16px; border: 1px solid #e2e2e2; }
+  .compare-col.vector { background: #fafafa; }
+  .compare-col.graph { background: #f2f8ff; border-color: #cfe3fb; }
+  .compare-title { font-weight: 700; font-size: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .compare-meta { font-weight: 400; color: #888; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -34,8 +42,14 @@
   <div id="chat"></div>
 
   <form id="form">
-    <input id="question" type="text" placeholder="例: 事実婚をしている場合、手当は支給されますか" autocomplete="off">
-    <button type="submit" id="submitBtn">質問する</button>
+    <label class="compare-toggle">
+      <input type="checkbox" id="compareMode">
+      比較モード（Vector RAGのみ vs GraphRAG を並べて表示）
+    </label>
+    <div class="form-row">
+      <input id="question" type="text" placeholder="例: 事実婚をしている場合、手当は支給されますか" autocomplete="off">
+      <button type="submit" id="submitBtn">質問する</button>
+    </div>
   </form>
 
 <script>
@@ -64,18 +78,45 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
-function addBotMessage(result) {
-  const div = document.createElement('div');
-  div.className = 'msg bot';
-  div.innerHTML = `
+function answerHtml(result) {
+  return `
     <div class="answer">${escapeHtml(result.answer || '')}</div>
     <div class="section-label">理由</div>
     <div>${escapeHtml(result.reason || '')}</div>
     ${listSection('根拠', result.evidence)}
     <div class="section-label">推論経路</div>
-    <div>${escapeHtml(result.reasoning_path || '')}</div>
+    <div>${escapeHtml(result.reasoning_path || '（該当なし）')}</div>
     ${listSection('関連法令', result.laws)}
     ${listSection('確認事項', result.confirmations)}
+  `;
+}
+
+function addBotMessage(result) {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = answerHtml(result);
+  chat.appendChild(div);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+function addComparisonMessage(data) {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `
+    <div class="compare-wrap">
+      <div class="compare-col vector">
+        <div class="compare-title">Vector RAGのみ
+          <span class="compare-meta">チャンク${data.vector_only.chunk_count}件</span>
+        </div>
+        ${answerHtml(data.vector_only.result)}
+      </div>
+      <div class="compare-col graph">
+        <div class="compare-title">GraphRAG
+          <span class="compare-meta">概念${data.graph_rag.concept_count}件 / チャンク${data.graph_rag.chunk_count}件</span>
+        </div>
+        ${answerHtml(data.graph_rag.result)}
+      </div>
+    </div>
   `;
   chat.appendChild(div);
   window.scrollTo(0, document.body.scrollHeight);
@@ -96,15 +137,22 @@ form.addEventListener('submit', async (e) => {
   chat.appendChild(loadingDiv);
   window.scrollTo(0, document.body.scrollHeight);
 
+  const compareMode = document.getElementById('compareMode').checked;
+  const endpoint = compareMode ? '/api/compare' : '/api/ask';
+
   try {
-    const res = await fetch('/api/ask', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),
     });
     const data = await res.json();
     loadingDiv.remove();
-    addBotMessage(data.result);
+    if (compareMode) {
+      addComparisonMessage(data);
+    } else {
+      addBotMessage(data.result);
+    }
   } catch (err) {
     loadingDiv.textContent = 'エラーが発生しました: ' + err.message;
   } finally {

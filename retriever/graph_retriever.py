@@ -230,3 +230,20 @@ class GraphRetriever:
             "laws": laws,
             "chunks": list(chunks_by_id.values()),
         }
+
+    # Baseline for comparison: vector similarity only, no graph traversal at
+    # all (no concepts/paths/laws/evidence) - see scripts/compare_vector_vs_graph.py
+    def retrieve_vector_only(self, query, top_k=10):
+        vector_hits = self.vector_retrieval(query, top_k=top_k)
+        return {
+            "query": query,
+            "concepts": [],
+            "paths": [],
+            "evidence": [],
+            "laws": [],
+            "chunks": [
+                {"chunk_id": v["chunk_id"], "text": v["text"], "page": v["page"],
+                 "section": v["section"], "source": "vector_search", "score": v["score"]}
+                for v in vector_hits
+            ],
+        }
