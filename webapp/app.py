@@ -9,10 +9,11 @@ import json
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from google import genai
+from google.genai import types
 from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -37,6 +38,26 @@ SYSTEM_PROMPT = """あなたは「児童扶養手当制度 説明支援アシス
   "reasoning_path": "概念間の推論経路を短く説明（例: 事実婚 → 消極的要件 → 支給されない）",
   "laws": ["関連する法令・条文名"],
   "confirmations": ["利用者が確認すべき事項や、担当窓口に相談すべき事項"]
+}
+"""
+
+
+CHECK_SYSTEM_PROMPT = """あなたは「児童扶養手当 申請書チェック支援アシスタント」です。
+以下のルールを厳守してください。
+
+1. アップロードされたPDF（記入済みの申請書等）の内容と、与えられた検索結果（必要書類・支給要件に関する制度知識）を照らし合わせ、記入漏れ・添付書類の不足・記載内容の不整合の可能性を指摘すること。
+2. 支給の可否や認定の可否についての最終判断は行わないこと。あくまで「確認すべき点」の指摘にとどめ、最終判断は窓口担当者に委ねること。
+3. 手当額の計算は行わないこと。
+4. 個人情報（氏名・住所・所得額・生年月日等）は、指摘に必要な最小限を除き、回答内でそのまま複製しないこと。「氏名欄」「所得欄」のように項目名で言及し、実際の記載値の引用は避けること。
+5. 検索結果や申請書に無い情報を生成しないこと。
+6. 回答は必ず次のJSON形式で出力すること（説明文やコードブロックは付けない）:
+{
+  "summary": "全体の確認結果の要約（1〜2文）",
+  "issues": [
+    {"item": "指摘対象の項目・添付書類名", "issue": "具体的な問題点", "reference": "根拠となる制度知識（ページ番号付き）"}
+  ],
+  "missing_attachments": ["不足している可能性のある添付書類"],
+  "confirmations": ["担当窓口に確認すべき事項"]
 }
 """
 
@@ -145,6 +166,52 @@ def compare(req: AskRequest):
             "chunk_count": len(graph_ctx["chunks"]),
         },
     })
+
+
+def build_check_prompt(note, context):
+    return json.dumps({
+        "note": note,
+        "search_results": {
+            "chunks": [
+                {"text": c["text"], "page": c["page"], "section": c["section"]}
+                for c in context["chunks"]
+            ],
+        },
+    }, ensure_ascii=False)
+
+
+@app.post("/api/check-application")
+async def check_application(file: UploadFile = File(...), note: str = Form("")):
+    if file.content_type != "application/pdf":
+        return JSONResponse({"error": "PDFファイルのみ対応しています。"}, status_code=400)
+
+    # Read into memory only - never written to disk, never logged, never
+    # passed to the retriever/graph/vector store. Goes out of scope (and is
+    # garbage collected) once this request finishes. See CLAUDE.md's MCP
+    # SEPARATION RULE: GraphRAG must not persist personal/application data.
+    pdf_bytes = await file.read()
+
+    retriever = get_retriever()
+    context = retriever.retrieve("認定請求に必要な添付書類 支給要件 確認事項")
+
+    client = get_genai_client()
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=[
+            types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+            CHECK_SYSTEM_PROMPT,
+            build_check_prompt(note, context),
+        ],
+        config={"response_mime_type": "application/json"},
+    )
+
+    try:
+        structured = json.loads(response.text)
+    except json.JSONDecodeError:
+        structured = {"summary": response.text, "issues": [],
+                      "missing_attachments": [], "confirmations": []}
+
+    return JSONResponse({"result": structured})
 
 
 @app.get("/")

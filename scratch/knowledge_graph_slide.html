@@ -1,0 +1,310 @@
+<title>児童扶養手当ナレッジグラフ</title>
+<style>
+  :root {
+    --bg: #eef1ee;
+    --surface: #ffffff;
+    --surface-2: #e4e9e2;
+    --ink: #16202b;
+    --muted: #5b6672;
+    --line: #c7cdc4;
+    --accent: #b8382c;
+    --accent-2: #96742a;
+    --law-fill: #1f3a5f;
+    --law-ink: #f3f6fb;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --sans: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1620;
+      --surface: #17212e;
+      --surface-2: #1b2637;
+      --ink: #eef1f6;
+      --muted: #8b96a8;
+      --line: #2b3850;
+      --accent: #e2665a;
+      --accent-2: #c9a54c;
+      --law-fill: #35547e;
+      --law-ink: #f3f6fb;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1620;
+    --surface: #17212e;
+    --surface-2: #1b2637;
+    --ink: #eef1f6;
+    --muted: #8b96a8;
+    --line: #2b3850;
+    --accent: #e2665a;
+    --accent-2: #c9a54c;
+    --law-fill: #35547e;
+    --law-ink: #f3f6fb;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    display: flex;
+    justify-content: center;
+    padding: 28px 16px;
+  }
+
+  .slide {
+    width: 100%;
+    max-width: 1180px;
+    aspect-ratio: 1600 / 900;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 34px 42px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 14px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin: 0 0 6px;
+  }
+  h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: 0.01em;
+  }
+  .stats {
+    display: flex;
+    gap: 22px;
+  }
+  .stat { text-align: right; }
+  .stat .n {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stat .l {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: 0.04em;
+  }
+
+  figure { margin: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  svg { width: 100%; height: 100%; display: block; }
+  figcaption {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  .node-title { font-weight: 700; font-size: 15px; }
+  .node-count { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .rel-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.02em; }
+  .zone-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; fill: var(--muted); }
+
+  .paths-box {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    fill: var(--muted);
+  }
+  .paths-box .step { fill: var(--ink); }
+</style>
+
+<div class="slide">
+  <header>
+    <div>
+      <p class="eyebrow">CHILD ALLOWANCE GRAPHRAG — SCHEMA OVERVIEW</p>
+      <h1>児童扶養手当ナレッジグラフ</h1>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n">272</div><div class="l">NODES</div></div>
+      <div class="stat"><div class="n">487</div><div class="l">RELATIONSHIPS</div></div>
+      <div class="stat"><div class="n">8</div><div class="l">ONTOLOGY LABELS</div></div>
+    </div>
+  </header>
+
+  <figure>
+    <svg viewBox="0 0 1600 840" role="img" aria-label="児童扶養手当GraphRAGの知識グラフ構造。法令が全ラベルを規律し、要件と所得がルールを介して決定と手当区分を生み、決定がイベントを生成し、概念とチャンク・原典が全体の根拠として下層で支える様子を示す図。">
+
+      <defs>
+        <marker id="arrow-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)" />
+        </marker>
+        <marker id="arrow-accent2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--accent-2)" />
+        </marker>
+      </defs>
+
+      <!-- grounding zone backdrop -->
+      <rect x="140" y="655" width="1320" height="150" rx="6" fill="var(--surface-2)" stroke="var(--line)" stroke-dasharray="3 4" />
+      <text x="160" y="672" class="zone-label">grounding layer — 制度知識の根拠</text>
+
+      <!-- ===== solid logic-flow arrows ===== -->
+      <g stroke="var(--ink)" fill="none" stroke-width="1.6">
+        <!-- Income -> Rule -->
+        <path d="M1050,270 L905,338" marker-end="url(#arrow-ink)" />
+        <!-- Eligibility -> Decision -->
+        <path d="M430,270 L412,498" marker-end="url(#arrow-ink)" />
+        <!-- Rule -> Decision -->
+        <path d="M715,432 L500,498" marker-end="url(#arrow-ink)" />
+        <!-- Rule -> Benefit -->
+        <path d="M800,432 L800,498" marker-end="url(#arrow-ink)" />
+        <!-- Decision -> Event -->
+        <path d="M562,550 L1038,550" marker-end="url(#arrow-ink)" />
+        <!-- Rule -> Law -->
+        <path d="M800,338 L800,112" marker-end="url(#arrow-ink)" />
+        <!-- Concept -> Eligibility (routed left of the Decision box) -->
+        <path d="M240,680 L150,600 L150,320 L400,272" marker-end="url(#arrow-ink)" />
+      </g>
+      <g fill="var(--surface)">
+        <rect x="895" y="290" width="98" height="16" />
+        <rect x="380" y="368" width="118" height="16" />
+        <rect x="560" y="452" width="98" height="16" />
+        <rect x="748" y="452" width="104" height="16" />
+        <rect x="748" y="538" width="104" height="16" />
+        <rect x="748" y="212" width="104" height="16" />
+        <rect x="93" y="452" width="114" height="16" />
+      </g>
+      <g class="rel-label" fill="var(--ink)">
+        <text x="944" y="303" text-anchor="middle">APPLIES_TO</text>
+        <text x="439" y="381" text-anchor="middle">SATISFIES / BLOCKS</text>
+        <text x="609" y="465" text-anchor="middle">DETERMINES</text>
+        <text x="800" y="465" text-anchor="middle">DETERMINES</text>
+        <text x="800" y="551" text-anchor="middle">RESULTS_IN</text>
+        <text x="800" y="225" text-anchor="middle">GOVERNED_BY</text>
+        <text x="150" y="464" text-anchor="middle">DEFINED_AS</text>
+      </g>
+
+      <!-- ===== dashed evidence arrows ===== -->
+      <g stroke="var(--accent-2)" fill="none" stroke-width="1.4" stroke-dasharray="5 4">
+        <path d="M420,600 L720,678" marker-end="url(#arrow-accent2)" />
+        <path d="M800,600 L800,678" marker-end="url(#arrow-accent2)" />
+        <path d="M1170,600 L900,678" marker-end="url(#arrow-accent2)" />
+        <path d="M940,725 L1138,725" marker-end="url(#arrow-accent2)" />
+      </g>
+      <g fill="var(--surface-2)">
+        <rect x="530" y="628" width="98" height="15" />
+        <rect x="820" y="628" width="98" height="15" />
+        <rect x="944" y="628" width="98" height="15" />
+        <rect x="985" y="716" width="66" height="16" />
+      </g>
+      <g class="rel-label" fill="var(--accent-2)">
+        <text x="579" y="640" text-anchor="middle">EVIDENCED_BY</text>
+        <text x="869" y="640" text-anchor="middle">EVIDENCED_BY</text>
+        <text x="993" y="640" text-anchor="middle">EVIDENCED_BY</text>
+        <text x="1018" y="728" text-anchor="middle">PART_OF</text>
+      </g>
+      <text x="1160" y="658" class="rel-label" fill="var(--muted)" text-anchor="end">※全8ラベルがEVIDENCED_BYでChunkへ接続</text>
+
+      <!-- ===== nodes ===== -->
+      <!-- Law -->
+      <g>
+        <rect x="680" y="30" width="240" height="80" rx="4" fill="var(--law-fill)" stroke="var(--law-fill)" />
+        <text x="800" y="60" text-anchor="middle" fill="var(--law-ink)" class="node-title">Law</text>
+        <text x="800" y="80" text-anchor="middle" fill="var(--law-ink)" font-size="11">法令・通知・条例</text>
+        <text x="800" y="97" text-anchor="middle" fill="var(--law-ink)" class="node-count" font-size="12">43</text>
+      </g>
+
+      <!-- Eligibility -->
+      <g>
+        <rect x="260" y="170" width="340" height="100" rx="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.4" />
+        <text x="430" y="200" text-anchor="middle" class="node-title">Eligibility</text>
+        <text x="430" y="220" text-anchor="middle" font-size="11" fill="var(--muted)">受給資格者類型・積極/消極的要件</text>
+        <text x="430" y="248" text-anchor="middle" class="node-count" font-size="13">28</text>
+      </g>
+
+      <!-- Income -->
+      <g>
+        <rect x="1000" y="170" width="340" height="100" rx="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.4" />
+        <text x="1170" y="200" text-anchor="middle" class="node-title">Income</text>
+        <text x="1170" y="220" text-anchor="middle" font-size="11" fill="var(--muted)">所得算定・所得制限限度額</text>
+        <text x="1170" y="248" text-anchor="middle" class="node-count" font-size="13">22</text>
+      </g>
+
+      <!-- Rule -->
+      <g>
+        <rect x="680" y="340" width="240" height="90" rx="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.8" />
+        <text x="800" y="370" text-anchor="middle" class="node-title" fill="var(--accent)">Rule</text>
+        <text x="800" y="389" text-anchor="middle" font-size="11" fill="var(--muted)">IF-THEN 判定ルール</text>
+        <text x="800" y="414" text-anchor="middle" class="node-count" font-size="13" fill="var(--accent)">13</text>
+      </g>
+
+      <!-- Decision -->
+      <g>
+        <rect x="260" y="500" width="300" height="100" rx="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.4" />
+        <text x="410" y="530" text-anchor="middle" class="node-title">Decision</text>
+        <text x="410" y="550" text-anchor="middle" font-size="11" fill="var(--muted)">認定・却下・差止 等</text>
+        <text x="410" y="578" text-anchor="middle" class="node-count" font-size="13">10</text>
+      </g>
+
+      <!-- Benefit -->
+      <g>
+        <rect x="650" y="500" width="300" height="100" rx="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.4" />
+        <text x="800" y="530" text-anchor="middle" class="node-title">Benefit</text>
+        <text x="800" y="550" text-anchor="middle" font-size="11" fill="var(--muted)">全部/一部支給・全部停止</text>
+        <text x="800" y="578" text-anchor="middle" class="node-count" font-size="13">11</text>
+      </g>
+
+      <!-- Event -->
+      <g>
+        <rect x="1040" y="500" width="300" height="100" rx="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.4" />
+        <text x="1190" y="530" text-anchor="middle" class="node-title">Event</text>
+        <text x="1190" y="550" text-anchor="middle" font-size="11" fill="var(--muted)">資格喪失・額改定・返還 等</text>
+        <text x="1190" y="578" text-anchor="middle" class="node-count" font-size="13">10</text>
+      </g>
+
+      <!-- Concept -->
+      <g>
+        <rect x="180" y="680" width="280" height="90" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.4" />
+        <text x="320" y="708" text-anchor="middle" class="node-title" font-size="14">Concept</text>
+        <text x="320" y="726" text-anchor="middle" font-size="10.5" fill="var(--muted)">監護・事実婚 等の用語定義</text>
+        <text x="320" y="750" text-anchor="middle" class="node-count" font-size="12">15</text>
+      </g>
+
+      <!-- Chunk -->
+      <g>
+        <rect x="660" y="680" width="280" height="90" rx="4" fill="var(--surface)" stroke="var(--accent-2)" stroke-width="1.6" />
+        <text x="800" y="708" text-anchor="middle" class="node-title" font-size="14" fill="var(--accent-2)">Chunk</text>
+        <text x="800" y="726" text-anchor="middle" font-size="10.5" fill="var(--muted)">原典から抽出した根拠断片</text>
+        <text x="800" y="750" text-anchor="middle" class="node-count" font-size="12" fill="var(--accent-2)">117</text>
+      </g>
+
+      <!-- Document -->
+      <g>
+        <rect x="1140" y="680" width="280" height="90" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.4" />
+        <text x="1280" y="708" text-anchor="middle" class="node-title" font-size="14">Document</text>
+        <text x="1280" y="726" text-anchor="middle" font-size="10.5" fill="var(--muted)">札幌市事務処理マニュアル</text>
+        <text x="1280" y="750" text-anchor="middle" class="node-count" font-size="12">1</text>
+      </g>
+
+      <!-- example reasoning paths callout, in the empty band between Law and the domain tier -->
+      <g class="paths-box">
+        <text x="60" y="128" fill="var(--muted)">実例（推論経路）:</text>
+        <text x="60" y="147"><tspan class="step" fill="var(--ink)">母/父/養育者</tspan> → 支給要件 → <tspan class="step" fill="var(--ink)">認定</tspan> → 受給権</text>
+        <text x="60" y="164"><tspan class="step" fill="var(--ink)">所得算定額</tspan> → 判定ルール → <tspan class="step" fill="var(--ink)">支給区分</tspan> → 手当額</text>
+      </g>
+
+    </svg>
+    <figcaption>Law が全ラベルを規律し、Eligibility / Income が Rule を介して Decision・Benefit を生み、Decision が Event を生成する。全ノードは Chunk（原典根拠）と Concept（用語定義）に接続し、回答の説明責任を担保する。</figcaption>
+  </figure>
+</div>
