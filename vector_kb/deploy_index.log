@@ -1,0 +1,3 @@
+﻿Deploying index projects/390463753824/locations/asia-northeast1/indexes/7526750828405719040 to endpoint projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672...
+Deploying index MatchingEngineIndexEndpoint index_endpoint: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672
+Deploy index MatchingEngineIndexEndpoint index_endpoint backing LRO: projects/390463753824/locations/asia-northeast1/indexEndpoints/7321507191872028672/operations/242800479837356032
