@@ -147,7 +147,7 @@
         <div class="steps">
           <div class="step"><div class="num">01</div><div><div class="stitle">eligibility_rules.yaml</div><div class="sdesc">積極的要件8種・消極的要件4種・受給資格者類型（母/父/養育者）</div></div></div>
           <div class="step"><div class="num">02</div><div><div class="stitle">benefit_rules.yaml</div><div class="sdesc">所得制限限度額表、支給区分ルール、年金併給・差止・返還等15ルール</div></div></div>
-          <div class="step"><div class="num">03</div><div><div class="stitle">decision_tree.yaml / rules.yaml</div><div class="sdesc">認定〜差止〜返還までの決定経路、全10 Decisionをルールへ接続</div></div></div>
+          <div class="step"><div class="num">03</div><div><div class="stitle">decision_tree.yaml / rules.yaml</div><div class="sdesc">認定〜差止〜返還までの決定経路、全10「判定」ノードをルールへ接続</div></div></div>
         </div>
       </div>
       <div class="col">
@@ -168,23 +168,24 @@
 <!-- 3: PHASE2 ONTOLOGY -->
 <section class="slide">
   <header class="slide-head">
-    <div><p class="eyebrow">Slide 3 — Phase2</p><h2>オントロジー設計：8ラベル・152ノード</h2></div>
+    <div><p class="eyebrow">Slide 3 — Phase2（2026-08-18改訂）</p><h2>オントロジー設計：9ラベル・155ノード</h2></div>
     <span class="pageno">03 / 09</span>
   </header>
   <div class="body">
-    <div class="card-grid">
-      <div class="card"><div class="ctitle">Law</div><div class="cdesc">法令・政令・通知・条例</div><div class="cnum">43</div></div>
-      <div class="card"><div class="ctitle">Eligibility</div><div class="cdesc">要件・受給資格者類型</div><div class="cnum">28</div></div>
-      <div class="card"><div class="ctitle">Income</div><div class="cdesc">所得算定・限度額</div><div class="cnum">22</div></div>
-      <div class="card"><div class="ctitle">Rule</div><div class="cdesc">IF-THEN判定ルール</div><div class="cnum">13</div></div>
-      <div class="card"><div class="ctitle">Concept</div><div class="cdesc">用語定義（監護等）</div><div class="cnum">15</div></div>
-      <div class="card"><div class="ctitle">Benefit</div><div class="cdesc">支給区分・手当額</div><div class="cnum">11</div></div>
-      <div class="card"><div class="ctitle">Decision</div><div class="cdesc">認定・却下・差止等</div><div class="cnum">10</div></div>
-      <div class="card"><div class="ctitle">Event</div><div class="cdesc">資格喪失・返還等</div><div class="cnum">10</div></div>
+    <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="card"><div class="ctitle">法令</div><div class="cdesc">法律・政令・通知・条例</div><div class="cnum">43</div></div>
+      <div class="card"><div class="ctitle">支給要件</div><div class="cdesc">積極的・消極的要件、児童年齢要件</div><div class="cnum">24</div></div>
+      <div class="card"><div class="ctitle">所得</div><div class="cdesc">所得算定・限度額・控除</div><div class="cnum">22</div></div>
+      <div class="card"><div class="ctitle">ルール</div><div class="cdesc">IF-THEN判定ルール</div><div class="cnum">15</div></div>
+      <div class="card"><div class="ctitle">概念</div><div class="cdesc">用語定義（監護・事実婚等）</div><div class="cnum">12</div></div>
+      <div class="card"><div class="ctitle">支給</div><div class="cdesc">支給区分・手当額</div><div class="cnum">11</div></div>
+      <div class="card"><div class="ctitle">判定</div><div class="cdesc">認定・却下・差止等</div><div class="cnum">10</div></div>
+      <div class="card"><div class="ctitle">イベント</div><div class="cdesc">資格喪失・返還等</div><div class="cnum">10</div></div>
+      <div class="card" style="border-color:var(--accent);"><div class="ctitle" style="color:var(--accent);">当事者</div><div class="cdesc">母・父・養育者・扶養義務者・里親・児童等</div><div class="cnum" style="color:var(--accent);">8</div></div>
     </div>
     <div class="finding">
       <div class="flabel">Design Rule</div>
-      <p>書類中心設計は禁止（Decision-Centered Ontology）。申請書・様式はノード化せず、判定・要件・法令の関係性のみを構造化。検証経路2本を実装確認済み：<b>受給資格者→支給要件→認定→受給権</b> ／ <b>所得→支給区分→手当額</b>。</p>
+      <p>書類中心設計は禁止（Decision-Centered Ontology）。申請書・様式はノード化せず、判定・要件・法令の関係性のみを構造化。検証経路2本を実装確認済み：<b>当事者（受給資格者）→支給要件→判定（認定）→支給要件（受給権）</b> ／ <b>所得→ルール→支給区分</b>。「当事者」ラベルは初版の8ラベルから、視認性向上のためEligibility/Conceptより独立させたもの（ユーザー指示による改訂）。</p>
     </div>
   </div>
 </section>
@@ -233,7 +234,7 @@
       </div></div>
       <div class="step"><div class="num">07</div><div>
         <div class="stitle">Rule Graph</div>
-        <div class="sdesc">未接続だった認定/却下・消極的要件による資格喪失の2系統にRuleノードを新設。全10 DecisionノードがいずれかのRuleに接続されていることを検証。rules.yamlをIF-THEN形式で正式に整備。</div>
+        <div class="sdesc">未接続だった認定/却下・消極的要件による資格喪失の2系統に「ルール」ノードを新設。全10「判定」ノードがいずれかの「ルール」に接続されていることを検証。rules.yamlをIF-THEN形式で正式に整備。</div>
       </div></div>
     </div>
   </div>
