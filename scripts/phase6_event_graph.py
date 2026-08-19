@@ -1,6 +1,6 @@
 """Phase6: Event Graph enrichment.
 
-Adds an `event_role` lifecycle-category property to each :Event node
+Adds an `event_role` lifecycle-category property to each :イベント node
 (initiating / state_change / suspension / resumption / termination /
 financial / financial_settlement), then validates that all 10 event types
 are reachable from 認定 (EVT-01) via PRECEDES/FOLLOWED_BY/LEADS_TO edges -
@@ -48,17 +48,17 @@ def main():
     driver = GraphDatabase.driver(uri, auth=(user, password))
 
     with driver.session() as session:
-        print("Setting event_role property on :Event nodes...")
+        print("Setting event_role property on :イベント nodes...")
         session.run("""
             UNWIND $rows AS row
-            MATCH (n:Event {id: row.id})
+            MATCH (n:イベント {id: row.id})
             SET n.event_role = row.role
         """, rows=[{"id": k, "role": v} for k, v in EVENT_ROLES.items()])
 
         print("\n=== Timeline reachability from 認定 (EVT-01) ===")
         result = session.run("""
-            MATCH (root:Event {id: 'EVT-01'})
-            MATCH (target:Event) WHERE target.id <> 'EVT-01'
+            MATCH (root:イベント {id: 'EVT-01'})
+            MATCH (target:イベント) WHERE target.id <> 'EVT-01'
             OPTIONAL MATCH path = shortestPath(
                 (root)-[:PRECEDES|FOLLOWED_BY|LEADS_TO*1..5]->(target)
             )
@@ -78,7 +78,7 @@ def main():
 
         print("\n=== Full event-type timeline edges ===")
         result = session.run("""
-            MATCH (a:Event)-[r:PRECEDES|FOLLOWED_BY|LEADS_TO]->(b:Event)
+            MATCH (a:イベント)-[r:PRECEDES|FOLLOWED_BY|LEADS_TO]->(b:イベント)
             RETURN a.name AS from_event, type(r) AS rel, b.name AS to_event
         """)
         for r in result:

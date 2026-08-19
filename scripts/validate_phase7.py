@@ -24,8 +24,8 @@ def main():
 
     with driver.session() as session:
         result = session.run("""
-            MATCH (d:Decision)
-            OPTIONAL MATCH (r:Rule)-[:DETERMINES]->(d)
+            MATCH (d:判定)
+            OPTIONAL MATCH (r:ルール)-[:DETERMINES]->(d)
             WITH d, collect(r.name) AS rules
             RETURN d.id AS id, d.name AS name, rules, size(rules) AS rule_count
             ORDER BY rule_count

@@ -26,9 +26,9 @@ def main():
     with driver.session() as session:
         print("=== Path 1: 受給資格者 -> 支給要件 -> 認定 -> 受給権 ===")
         result = session.run("""
-            MATCH p = (claimant:Eligibility {category: '受給資格者類型'})
-                      -[:LEADS_TO]->(decision:Decision {name: '認定'})
-                      -[:RESULTS_IN]->(right:Eligibility {name: '受給権'})
+            MATCH p = (claimant:当事者 {category: '受給資格者類型'})
+                      -[:LEADS_TO]->(decision:判定 {name: '認定'})
+                      -[:RESULTS_IN]->(right:支給要件 {name: '受給権'})
             RETURN claimant.name AS claimant, decision.name AS decision, right.name AS right
         """)
         for r in result:
@@ -36,10 +36,10 @@ def main():
 
         print("=== Path 2: 所得 -> 支給区分 -> 手当額 ===")
         result = session.run("""
-            MATCH p = (income:Income {name: '所得算定額'})
-                      -[:APPLIES_TO]->(rule:Rule)
-                      -[:DETERMINES]->(benefit:Benefit)
-            MATCH (benefit)<-[:PART_OF]-(amount:Benefit {name: '手当額'})
+            MATCH p = (income:所得 {name: '所得算定額'})
+                      -[:APPLIES_TO]->(rule:ルール)
+                      -[:DETERMINES]->(benefit:支給)
+            MATCH (benefit)<-[:PART_OF]-(amount:支給 {name: '手当額'})
             RETURN rule.name AS rule, benefit.name AS benefit, amount.name AS amount
         """)
         for r in result:

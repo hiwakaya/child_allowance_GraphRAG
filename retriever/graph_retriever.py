@@ -173,7 +173,7 @@ class GraphRetriever:
         with self.driver.session() as session:
             result = session.run(
                 """
-                MATCH (n)-[:GOVERNED_BY]->(law:Law)
+                MATCH (n)-[:GOVERNED_BY]->(law:法令)
                 WHERE n.id IN $ids
                 RETURN DISTINCT law.id AS id, law.name AS name, law.description AS description, law.page AS page
                 """,

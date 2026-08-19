@@ -34,7 +34,7 @@ def main():
 
         print("\n=== Full chain check: Concept -> Chunk -> Document ===")
         result = session.run("""
-            MATCH (c:Concept {id: 'CON-01'})-[:EVIDENCED_BY]->(ch:Chunk)-[:PART_OF]->(d:Document)
+            MATCH (c:概念 {id: 'CON-01'})-[:EVIDENCED_BY]->(ch:Chunk)-[:PART_OF]->(d:Document)
             RETURN c.name AS concept, ch.chunk_id AS chunk, ch.page AS page, d.name AS document
         """)
         for r in result:
