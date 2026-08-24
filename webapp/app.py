@@ -214,6 +214,17 @@ async def check_application(file: UploadFile = File(...), note: str = Form("")):
     return JSONResponse({"result": structured})
 
 
+@app.get("/api/keepalive")
+def keepalive():
+    """Touched periodically by Cloud Scheduler so the Neo4j Aura Free
+    instance never sits idle long enough to auto-pause (see project memory:
+    Aura Free paused after inactivity on 2026-08-24, requiring manual resume)."""
+    retriever = get_retriever()
+    with retriever.driver.session() as session:
+        session.run("RETURN 1").consume()
+    return JSONResponse({"status": "ok"})
+
+
 @app.get("/")
 def index():
     return FileResponse(Path(__file__).parent / "static" / "index.html")
