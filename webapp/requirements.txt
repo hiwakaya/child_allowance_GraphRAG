@@ -1,6 +1,8 @@
 fastapi
 uvicorn[standard]
 python-multipart
+itsdangerous
+google-auth
 google-genai
 google-cloud-aiplatform
 google-cloud-secret-manager

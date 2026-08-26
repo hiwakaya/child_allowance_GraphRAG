@@ -46,14 +46,33 @@
   .issue-item { font-size: 13px; margin-bottom: 8px; padding: 8px 10px; background: #fff6f2; border-left: 3px solid #c9603f; border-radius: 4px; }
   .issue-item .issue-what { font-weight: 600; }
   .issue-item .issue-ref { color: #888; font-size: 11px; margin-top: 2px; }
+
+  #loginScreen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+  #loginScreen p { color: #666; font-size: 13px; max-width: 340px; }
+  #loginError { color: #b8382c; font-size: 13px; }
+  .app-hidden { display: none !important; }
+  .topbar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 12px; font-size: 12px; color: #666; }
+  .topbar button { background: none; border: 1px solid #ccc; color: #555; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
 </style>
 </head>
 <body>
-  <h1>児童扶養手当 制度Q&A</h1>
-  <div class="subtitle">札幌市児童扶養手当事務処理マニュアルに基づく制度説明支援（GraphRAG）</div>
-  <div class="disclaimer">このシステムは制度の一般的な説明を行うものであり、個別の認定可否や支給額の判断は行いません。実際の手続きは手当給付係にご確認ください。</div>
+  <div id="loginScreen">
+    <h1 style="margin:0;">児童扶養手当 制度Q&A</h1>
+    <p>このシステムは許可されたGoogleアカウントのみ利用できます。サインインしてください。</p>
+    <div id="googleSignInButton"></div>
+    <div id="loginError"></div>
+  </div>
 
-  <div id="chat"></div>
+  <div id="appScreen" class="app-hidden" style="display: contents;">
+    <div class="topbar">
+      <span id="userEmail"></span>
+      <button type="button" id="logoutBtn">ログアウト</button>
+    </div>
+    <h1>児童扶養手当 制度Q&A</h1>
+    <div class="subtitle">札幌市児童扶養手当事務処理マニュアルに基づく制度説明支援（GraphRAG）</div>
+    <div class="disclaimer">このシステムは制度の一般的な説明を行うものであり、個別の認定可否や支給額の判断は行いません。実際の手続きは手当給付係にご確認ください。</div>
+
+    <div id="chat"></div>
 
   <form id="form">
     <label class="compare-toggle">
@@ -71,7 +90,9 @@
       <button type="submit" id="submitBtn">質問する</button>
     </div>
   </form>
+  </div>
 
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const chat = document.getElementById('chat');
 const form = document.getElementById('form');
@@ -79,6 +100,67 @@ const input = document.getElementById('question');
 const submitBtn = document.getElementById('submitBtn');
 const pdfFile = document.getElementById('pdfFile');
 const fileChipRow = document.getElementById('fileChipRow');
+const loginScreen = document.getElementById('loginScreen');
+const appScreen = document.getElementById('appScreen');
+const loginError = document.getElementById('loginError');
+const userEmail = document.getElementById('userEmail');
+const OAUTH_CLIENT_ID = '390463753824-jkcfq6j42b3fgqthbi9mm0f0hel2575o.apps.googleusercontent.com';
+
+function showApp(email) {
+  loginScreen.classList.add('app-hidden');
+  appScreen.classList.remove('app-hidden');
+  userEmail.textContent = email;
+}
+
+function showLogin(message) {
+  appScreen.classList.add('app-hidden');
+  loginScreen.classList.remove('app-hidden');
+  loginError.textContent = message || '';
+}
+
+async function onGoogleCredential(response) {
+  loginError.textContent = '';
+  try {
+    const res = await fetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showLogin(err.detail || 'サインインに失敗しました。');
+      return;
+    }
+    const data = await res.json();
+    showApp(data.email);
+  } catch (err) {
+    showLogin('通信エラーが発生しました: ' + err.message);
+  }
+}
+
+window.addEventListener('load', () => {
+  if (!window.google || !window.google.accounts) return;
+  google.accounts.id.initialize({ client_id: OAUTH_CLIENT_ID, callback: onGoogleCredential });
+  google.accounts.id.renderButton(document.getElementById('googleSignInButton'),
+    { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ja' });
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  showLogin();
+});
+
+(async function checkSession() {
+  try {
+    const res = await fetch('/api/auth/me');
+    const data = await res.json();
+    if (data.email) {
+      showApp(data.email);
+    }
+  } catch (err) {
+    // stay on login screen
+  }
+})();
 
 // #chat is its own scroll container (flex:1 1 auto; overflow-y:auto), so the
 // bottom of the last message is always above the static form - no fixed
@@ -214,6 +296,7 @@ form.addEventListener('submit', async (e) => {
       formData.append('file', pdfFile.files[0]);
       formData.append('note', question);
       const res = await fetch('/api/check-application', { method: 'POST', body: formData });
+      if (res.status === 401) { loadingDiv.remove(); showLogin('セッションが切れました。再度サインインしてください。'); return; }
       const data = await res.json();
       loadingDiv.remove();
       addCheckMessage(data.result);
@@ -227,6 +310,7 @@ form.addEventListener('submit', async (e) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
       });
+      if (res.status === 401) { loadingDiv.remove(); showLogin('セッションが切れました。再度サインインしてください。'); return; }
       const data = await res.json();
       loadingDiv.remove();
       if (compareMode) {

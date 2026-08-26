@@ -9,19 +9,30 @@ import json
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from google import genai
 from google.genai import types
+from google.auth.transport import requests as google_auth_requests
+from google.oauth2 import id_token as google_id_token
 from pydantic import BaseModel
+from starlette.middleware.sessions import SessionMiddleware
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from retriever.graph_retriever import GraphRetriever  # noqa: E402
+from retriever.secrets_util import get_secret  # noqa: E402
 
 PROJECT = "driven-backbone-479003-v3"
 REGION = "asia-northeast1"
 GEMINI_MODEL = "gemini-2.5-flash"
+
+# Public OAuth client identifier (not a secret) - the "Web application" OAuth
+# client created for the former IAP setup, reused here for Google Identity
+# Services sign-in now that the LB/IAP stack has been retired to cut its
+# flat ~$18/month forwarding-rule cost. Access control is now enforced at
+# the application layer instead of the network layer (see require_login()).
+OAUTH_CLIENT_ID = "390463753824-jkcfq6j42b3fgqthbi9mm0f0hel2575o.apps.googleusercontent.com"
 
 SYSTEM_PROMPT = """あなたは「児童扶養手当制度 説明支援アシスタント」です。
 以下のルールを厳守してください。
@@ -66,10 +77,18 @@ class AskRequest(BaseModel):
     question: str
 
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
+
 app = FastAPI(title="児童扶養手当 GraphRAG")
+app.add_middleware(SessionMiddleware, secret_key=get_secret("webapp-session-secret"),
+                    same_site="lax", https_only=True)
 
 _retriever = None
 _genai_client = None
+_allowed_emails = None
+_keepalive_token = None
 
 
 def get_retriever():
@@ -77,6 +96,27 @@ def get_retriever():
     if _retriever is None:
         _retriever = GraphRetriever()
     return _retriever
+
+
+def get_allowed_emails():
+    global _allowed_emails
+    if _allowed_emails is None:
+        _allowed_emails = {e.strip().lower() for e in get_secret("webapp-allowed-emails").split(",") if e.strip()}
+    return _allowed_emails
+
+
+def get_keepalive_token():
+    global _keepalive_token
+    if _keepalive_token is None:
+        _keepalive_token = get_secret("webapp-keepalive-token")
+    return _keepalive_token
+
+
+def require_login(request: Request):
+    email = request.session.get("email")
+    if not email or email not in get_allowed_emails():
+        raise HTTPException(status_code=401, detail="ログインが必要です。")
+    return email
 
 
 def get_genai_client():
@@ -129,8 +169,38 @@ def generate_answer(question, context):
                 "reasoning_path": "", "laws": [], "confirmations": []}
 
 
+@app.post("/api/auth/google")
+def auth_google(req: GoogleLoginRequest, request: Request):
+    try:
+        payload = google_id_token.verify_oauth2_token(
+            req.credential, google_auth_requests.Request(), OAUTH_CLIENT_ID)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="トークンの検証に失敗しました。")
+
+    email = (payload.get("email") or "").lower()
+    if not payload.get("email_verified") or email not in get_allowed_emails():
+        raise HTTPException(status_code=403, detail="このアカウントにはアクセス権がありません。")
+
+    request.session["email"] = email
+    return JSONResponse({"email": email})
+
+
+@app.get("/api/auth/me")
+def auth_me(request: Request):
+    email = request.session.get("email")
+    if not email or email not in get_allowed_emails():
+        return JSONResponse({"email": None})
+    return JSONResponse({"email": email})
+
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request):
+    request.session.clear()
+    return JSONResponse({"status": "ok"})
+
+
 @app.post("/api/ask")
-def ask(req: AskRequest):
+def ask(req: AskRequest, _email: str = Depends(require_login)):
     retriever = get_retriever()
     context = retriever.retrieve(req.question)
     structured = generate_answer(req.question, context)
@@ -145,7 +215,7 @@ def ask(req: AskRequest):
 
 
 @app.post("/api/compare")
-def compare(req: AskRequest):
+def compare(req: AskRequest, _email: str = Depends(require_login)):
     retriever = get_retriever()
 
     vector_ctx = retriever.retrieve_vector_only(req.question)
@@ -181,7 +251,8 @@ def build_check_prompt(note, context):
 
 
 @app.post("/api/check-application")
-async def check_application(file: UploadFile = File(...), note: str = Form("")):
+async def check_application(file: UploadFile = File(...), note: str = Form(""),
+                             _email: str = Depends(require_login)):
     if file.content_type != "application/pdf":
         return JSONResponse({"error": "PDFファイルのみ対応しています。"}, status_code=400)
 
@@ -215,10 +286,18 @@ async def check_application(file: UploadFile = File(...), note: str = Form("")):
 
 
 @app.get("/api/keepalive")
-def keepalive():
+def keepalive(request: Request):
     """Touched periodically by Cloud Scheduler so the Neo4j Aura Free
     instance never sits idle long enough to auto-pause (see project memory:
-    Aura Free paused after inactivity on 2026-08-24, requiring manual resume)."""
+    Aura Free paused after inactivity on 2026-08-24, requiring manual resume).
+
+    Now that the LB/IAP stack is gone, Cloud Run's IAM invoker check no
+    longer restricts callers (allUsers has roles/run.invoker so the app is
+    network-reachable by anyone) - this endpoint is unauthenticated at the
+    transport layer, so it checks a shared-secret header instead to stop
+    randoms from spinning up Neo4j sessions."""
+    if request.headers.get("X-Keepalive-Token") != get_keepalive_token():
+        raise HTTPException(status_code=403, detail="forbidden")
     retriever = get_retriever()
     with retriever.driver.session() as session:
         session.run("RETURN 1").consume()
