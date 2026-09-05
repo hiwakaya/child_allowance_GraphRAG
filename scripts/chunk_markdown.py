@@ -1,13 +1,25 @@
 """Phase4: chunk normalized markdown into 500-1000 char chunks (100 char overlap)
 with metadata (chunk_id, source, page, section, category, revision) for the
 Vector Knowledge Base (Google Cloud Vector Search).
+
+Processes every markdown file listed in INPUT_MD_FILES (each with its own
+front-matter source/revision), numbering chunk_id continuously across all of
+them, and writes the combined result to OUTPUT_JSONL.
 """
 import json
 import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-INPUT_MD = REPO_ROOT / "markdown" / "sapporo_jido_fuyo_teate_manual.md"
+MARKDOWN_DIR = REPO_ROOT / "markdown"
+INPUT_MD_FILES = [
+    MARKDOWN_DIR / "sapporo_jido_fuyo_teate_manual.md",
+    MARKDOWN_DIR / "leaflet_hattei_keisan.md",
+    MARKDOWN_DIR / "form_a03.md",
+    MARKDOWN_DIR / "form_a04.md",
+    MARKDOWN_DIR / "form_a07.md",
+    MARKDOWN_DIR / "form_a09.md",
+]
 OUTPUT_JSONL = REPO_ROOT / "vector_kb" / "chunks.jsonl"
 
 CHUNK_MIN = 500
@@ -28,6 +40,13 @@ CATEGORY_KEYWORDS = [
     (("マイナンバー制度", "ＤＶ被害者への対応", "システム入力", "主な出力リスト一覧",
       "通報時の対応", "ＪＲ通勤定期の特別割引制度", "Ｑ＆Ａ", "不備書類や書類の補正",
       "認定請求（添付書類）", "認定請求（留意事項）"), "General"),
+    # リーフレット（児扶手制度（手当額計算方法等）.pdf）・様式4件（2026-09-05取込）
+    (("支給額表", "一部支給の手当額計算", "手当額の算出方法", "支給区分の判定"), "Benefit"),
+    (("扶養義務者の所得の計算", "所得とは"), "Income"),
+    (("別居の母（父）が児童を監護している旨の申立書",
+      "事実婚解消申立書",
+      "父(母)が児童を遺棄している旨の申立書",
+      "住民登録上の住所と現住所が異なる旨の申立書"), "Eligibility"),
 ]
 
 
@@ -93,12 +112,14 @@ def parse_blocks(body):
     return blocks
 
 
-def make_chunks(blocks, source, revision):
+def make_chunks(blocks, source, revision, start_num=0):
+    """Returns (chunks, next_start_num) so chunk_id numbering can continue
+    across multiple source documents (see main())."""
     chunks = []
     buf = ""
     buf_page = None
     buf_section = None
-    chunk_num = 0
+    chunk_num = start_num
 
     def flush(next_overlap_text=""):
         nonlocal buf, buf_page, buf_section, chunk_num
@@ -140,14 +161,19 @@ def make_chunks(blocks, source, revision):
             buf_section = section
 
     flush()
-    return chunks
+    return chunks, chunk_num
 
 
 def main():
-    text = INPUT_MD.read_text(encoding="utf-8-sig")
-    source, revision, body = parse_front_matter(text)
-    blocks = parse_blocks(body)
-    chunks = make_chunks(blocks, source, revision)
+    chunks = []
+    next_num = 0
+    for md_path in INPUT_MD_FILES:
+        text = md_path.read_text(encoding="utf-8-sig")
+        source, revision, body = parse_front_matter(text)
+        blocks = parse_blocks(body)
+        doc_chunks, next_num = make_chunks(blocks, source, revision, start_num=next_num)
+        chunks.extend(doc_chunks)
+        print(f"{md_path.name}: {len(doc_chunks)} chunks (source={source})")
 
     OUTPUT_JSONL.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_JSONL, "w", encoding="utf-8") as f:
