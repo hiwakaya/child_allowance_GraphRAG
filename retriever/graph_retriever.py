@@ -56,6 +56,11 @@ class GraphRetriever:
             result = session.run("MATCH (n) WHERE n.id IS NOT NULL RETURN n")
             self._ontology_nodes = [dict(r["n"]) | {"labels": list(r["n"].labels)} for r in result]
 
+        # クエリ結果キャッシュ（(query, top_k)の完全一致でVertex AI埋め込み呼び出しを省く）。
+        # 意味的類似度に基づくファジーマッチではなく、同一クエリ文字列の再利用のみを対象とする
+        # （2026-09-05・tasks.md T6「セマンティックキャッシュ」）。プロセス内メモリのみで永続化しない。
+        self._vector_cache = {}
+
     def close(self):
         self.driver.close()
 
@@ -128,6 +133,11 @@ class GraphRetriever:
 
     # 5. Vector Retrieval ----------------------------------------------------
     def vector_retrieval(self, query, top_k=VECTOR_TOP_K):
+        cache_key = (query, top_k)
+        cached = self._vector_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         query_embedding = self.embed_model.get_embeddings(
             [TextEmbeddingInput(text=query, task_type="RETRIEVAL_QUERY")]
         )[0].values
@@ -147,6 +157,7 @@ class GraphRetriever:
                 "page": chunk.get("page"),
                 "section": chunk.get("section"),
             })
+        self._vector_cache[cache_key] = results
         return results
 
     # Concept backfill: nodes evidenced by the same passages vector search
@@ -182,14 +193,22 @@ class GraphRetriever:
             return [dict(r) for r in result]
 
     # 6. Context Assembly -----------------------------------------------------
-    def retrieve(self, query):
-        concepts = self.concept_search(query)
+    def retrieve(self, query, exclude_node_ids=None):
+        """`exclude_node_ids`：制度スコープ外の事由等、呼び出し側の判断で検索対象から除外したい
+        オントロジーノードIDの集合（例：本デモが対象外とする積極的要件）。グラフ側
+        （concepts／paths／evidence／laws）にのみ適用し、`vector_hits`（生テキストの類似度検索）は
+        ノードとの対応を持たないため対象外（呼び出し側で除外ノード名を含むchunkを別途フィルタする
+        必要がある場合はchunk側で判断すること）。デフォルト（None）は従来通り除外なし。
+        """
+        exclude = set(exclude_node_ids or ())
+
+        concepts = [c for c in self.concept_search(query) if c["id"] not in exclude]
         vector_hits = self.vector_retrieval(query)
 
         backfill = self.concepts_from_chunks([v["chunk_id"] for v in vector_hits])
         seen_ids = {c["id"] for c in concepts}
         for c in backfill:
-            if c["id"] not in seen_ids:
+            if c["id"] not in seen_ids and c["id"] not in exclude:
                 concepts.append(c)
                 seen_ids.add(c["id"])
         concept_ids = [c["id"] for c in concepts]
@@ -198,8 +217,8 @@ class GraphRetriever:
         path_node_ids = {
             n for path in paths for step in path
             for n in (step["from_id"], step["to_id"])
-        }
-        evidence_node_ids = list(set(concept_ids) | path_node_ids)
+        } - exclude
+        evidence_node_ids = list((set(concept_ids) | path_node_ids) - exclude)
 
         evidence = self.evidence_discovery(evidence_node_ids)
         laws = self.find_laws(evidence_node_ids)
