@@ -19,6 +19,7 @@ INPUT_MD_FILES = [
     MARKDOWN_DIR / "form_a04.md",
     MARKDOWN_DIR / "form_a07.md",
     MARKDOWN_DIR / "form_a09.md",
+    MARKDOWN_DIR / "form_a08.md",
 ]
 OUTPUT_JSONL = REPO_ROOT / "vector_kb" / "chunks.jsonl"
 
@@ -46,7 +47,8 @@ CATEGORY_KEYWORDS = [
     (("別居の母（父）が児童を監護している旨の申立書",
       "事実婚解消申立書",
       "父(母)が児童を遺棄している旨の申立書",
-      "住民登録上の住所と現住所が異なる旨の申立書"), "Eligibility"),
+      "住民登録上の住所と現住所が異なる旨の申立書",
+      "世帯分離申立書"), "Eligibility"),
 ]
 
 
